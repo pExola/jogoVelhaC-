@@ -1,0 +1,146 @@
+//Código realizado no ARDUINO
+
+#include <Adafruit_NeoPixel.h>
+#include <Keypad.h>
+const byte LINHAS = 4; // Número de linhas
+const byte COLUNAS = 4; // Número de colunas
+int coord = 0; // Armazenar a coordenada selecionada
+int playerA = 0; // Determinar o jogador inicial
+int equipe = 0; // Controlar o jogador atual
+int vencedor = 0; // Armazenar o vencedor do jogo (0 quando não tiver vencedor)
+bool vezJogadorA = true; //Vez do jogador A
+int matriz[3][3] = {
+  {0, 0, 0},
+  {0, 0, 0},
+  {0, 0, 0}
+};
+char hexaTeclas[LINHAS][COLUNAS] = {
+  {'1', '2', '3', 'A'},
+  {'4', '5', '6', 'B'},
+  {'7', '8', '9', 'C'},
+  {'*', '0', '#', 'D'}
+};
+byte pinosLinhas[LINHAS] = {2, 3, 4, 5}; // Linhas do teclado
+byte pinosColunas[COLUNAS] = {6, 7, 8, 9}; // Colunas do teclado
+Keypad tecladoPersonalizado = Keypad(makeKeymap(hexaTeclas), pinosLinhas, pinosColunas, LINHAS, COLUNAS);
+int PIN = 13; // Controle para os LEDs
+int numLEDS = 9; // Total de LEDs no jogo
+Adafruit_NeoPixel fitaLed = Adafruit_NeoPixel(numLEDS, PIN, NEO_GRB + NEO_KHZ800);
+void setup() {
+  pinMode(13, OUTPUT); // Pino 13 como saída (LED de teste)
+  equipe = playerA; // Atribui jogador atual como o jogador inicial
+  fitaLed.begin(); // Ativa a fita de LEDs
+fitaLed.show(); // Atualiza a fita de LEDs
+}
+void exemplo() {
+  for (int i = 0; i < fitaLed.numPixels(); i++) {
+    fitaLed.setPixelColor(i, random(0, 255), random(0, 255), random(0, 255)); // Cores aleatórias para com os LEDs
+fitaLed.show(); // Atualiza a fita de LEDs
+  }
+}
+void verificarEmpate() {
+  int empate = true;
+  for (int i = 0; i <= 2; i++) {
+    for (int j = 0; j <= 2; j++) {
+      int a = matriz[i][j];
+      if (a == 0) {
+        empate = false;
+        break;
+      }
+    }
+  }
+  if (empate == true) {
+    vencedor = 3; // Mostra um empate
+    for (int i = 0; i < numLEDS; i++) {
+      fitaLed.setPixelColor(i, 255, 255, 0); // Mostra a cor amarela para todos os LEDs no caso de empate
+    }
+fitaLed.show(); // Atualiza a fita de LEDs
+    delay(5000); // Delay de 5 segundos
+    reset(); // Faz reboot no jogo
+  }
+}
+void reset() {
+  for (int i = 0; i <= 2; i++) {
+    for (int j = 0; j <= 2; j++) {
+      matriz[i][j] = 0; // Faz reconfiguração da matriz do jogo
+    }
+  }
+  fitaLed.clear(); // Desliga todos os LEDs
+fitaLed.show(); // Atualiza a fita de LEDs
+  playerA = (playerA + 1) % 2; // Muda o jogador
+  equipe = playerA; // Atribui o jogador atual como o jogador inicial
+  vencedor = 0; // Faz reboot na variável de vencedor
+}
+void verificarJogada() {
+  char tecla = tecladoPersonalizado.getKey();
+  if (tecla == 'A' || tecla == 'B') {
+    equipe = (tecla == 'A') ? 0 : 1; // 0 para A, 1 para B
+  } else {
+    coord = tecla - '1'; // Modifica a tecla em uma coordenada (0 a 8)
+  }
+}
+void realizarJogada() {
+  if (coord >= 0 && coord < 9) {
+    if (vencedor > 0) {
+      reset();
+    } else {
+      int linha = coord / 3;
+      int coluna = coord % 3;
+      if (matriz[linha][coluna] == 0) {
+        if ((equipe == 0 && vezJogadorA) || (equipe == 1 && !vezJogadorA)) {
+          // Verifique-se a vez do jogador atual jogar
+          matriz[linha][coluna] = equipe + 1;
+          fitaLed.setPixelColor(coord, (equipe == 0) ? 0 : 255, 0, (equipe == 1) ? 0 : 255);
+fitaLed.show();
+          verificarVitoria();
+          vezJogadorA = !vezJogadorA; // Altera a vez para o próximo jogador
+        }
+      }
+    }
+  }
+}
+
+void verificarVitoria() {
+  // Encontra vitória nas linhas horizontais
+  for (int i = 0; i < 3; i++) {
+    if (matriz[i][0] == matriz[i][1] && matriz[i][0] == matriz[i][2] && matriz[i][0] != 0) {
+      vencedor = matriz[i][0];
+      break;
+    }
+  }
+  // Verifica vitória nas colunas verticais (da esquerda para a direita)
+  for (int j = 0; j < 3; j++) {
+    if (matriz[0][j] == matriz[1][j] && matriz[0][j] == matriz[2][j] && matriz[0][j] != 0) {
+      vencedor = matriz[0][j];
+      break;
+    }
+  }
+  // Verifica vitória nas diagonais
+  if (matriz[0][0] == matriz[1][1] && matriz[0][0] == matriz[2][2] && matriz[0][0] != 0) {
+    vencedor = matriz[0][0];
+  } else if (matriz[0][2] == matriz[1][1] && matriz[0][2] == matriz[2][0] && matriz[0][2] != 0) {
+    vencedor = matriz[0][2];
+  }
+  if (vencedor != 0) {
+    int corR = (vencedor == 1) ? 0 : 255; // 0 para jogador A (Azul), 255 para jogador B (Vermelho)
+    int corG = 0; // Não mude o componente verde (zero)
+    int corB = (vencedor == 1) ? 255 : 0; // 255 para jogador A (Azul), 0 para jogador B (Vermelho)
+    for (int i = 0; i < numLEDS; i++) {
+      fitaLed.setPixelColor(i, corR, corG, corB); // Define a cor do vencedor para todos os LEDs da matriz
+    }
+fitaLed.show(); // Atualiza a fita de LEDs
+    delay(5000); // Aguarda 5 segundos
+    reset(); // Reinicia o jogo
+  } else {
+    verificarEmpate(); // Verifica se houve um empate
+  }
+}
+
+void loop() {
+  verificarJogada();
+  if (tecladoPersonalizado.isPressed('C')) {
+    // Reinicia o jogo quando a tecla "C" for pressionada
+    reset();
+  }
+  realizarJogada();
+}
